@@ -48,4 +48,5 @@ jobs:
             --region us-central1 \
             --platform managed \
             --allow-unauthenticated \
+            --add-cloudsql-instances ${{ secrets.INSTANCE_CONNECTION_NAME }} \
             --set-env-vars "^|^SPRING_DATASOURCE_URL=${{ secrets.ROOMS_DB_URL }}|SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}|SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}|JWT_SECRET=${{ secrets.JWT_SECRET }}"
