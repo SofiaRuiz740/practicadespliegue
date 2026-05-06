@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-
     paths:
       - "rooms-service/**"
       - ".github/workflows/deploy-rooms.yml"
@@ -37,15 +36,16 @@ jobs:
       - name: Build Docker image
         run: |
           docker build -f rooms-service/Dockerfile -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/hotel-docker/rooms-service:${{ github.sha }} .
+
       - name: Push Docker image
         run: |
           docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/hotel-docker/rooms-service:${{ github.sha }}
 
-     - name: Deploy to Cloud Run
-  run: |
-    gcloud run deploy rooms-service \
-      --image us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/hotel-docker/rooms-service:${{ github.sha }} \
-      --region us-central1 \
-      --platform managed \
-      --allow-unauthenticated \
-      --set-env-vars "^|^SPRING_DATASOURCE_URL=${{ secrets.ROOMS_DB_URL }}|SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}|SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}|JWT_SECRET=${{ secrets.JWT_SECRET }}"
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy rooms-service \
+            --image us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/hotel-docker/rooms-service:${{ github.sha }} \
+            --region us-central1 \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars "^|^SPRING_DATASOURCE_URL=${{ secrets.ROOMS_DB_URL }}|SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}|SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}|JWT_SECRET=${{ secrets.JWT_SECRET }}"
