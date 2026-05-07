@@ -1,0 +1,52 @@
+name: Deploy Inventory Service
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "inventory-service/**"
+      - ".github/workflows/deploy-inventory.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build Docker image
+        run: |
+          docker build -f inventory-service/Dockerfile -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/hotel-docker/inventory-service:${{ github.sha }} .
+
+      - name: Push Docker image
+        run: |
+          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/hotel-docker/inventory-service:${{ github.sha }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy inventory-service \
+            --image us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/hotel-docker/inventory-service:${{ github.sha }} \
+            --region us-central1 \
+            --platform managed \
+            --allow-unauthenticated \
+            --add-cloudsql-instances ${{ secrets.INSTANCE_CONNECTION_NAME }} \
+            --set-env-vars "^|^SPRING_DATASOURCE_URL=${{ secrets.INVENTORY_DB_URL }}|SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}|SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}|JWT_SECRET=${{ secrets.JWT_SECRET }}"
