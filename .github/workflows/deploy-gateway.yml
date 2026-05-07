@@ -1,0 +1,51 @@
+name: Deploy Gateway Service
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "gateway-service/**"
+      - ".github/workflows/deploy-gateway.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build Docker image
+        run: |
+          docker build -f gateway-service/Dockerfile -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/hotel-docker/gateway-service:${{ github.sha }} .
+
+      - name: Push Docker image
+        run: |
+          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/hotel-docker/gateway-service:${{ github.sha }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy gateway-service \
+            --image us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/hotel-docker/gateway-service:${{ github.sha }} \
+            --region us-central1 \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars "^|^ROOMS_SERVICE_URL=${{ secrets.ROOMS_SERVICE_URL }}|INVENTORY_SERVICE_URL=${{ secrets.INVENTORY_SERVICE_URL }}|JWT_SECRET=${{ secrets.JWT_SECRET }}"
